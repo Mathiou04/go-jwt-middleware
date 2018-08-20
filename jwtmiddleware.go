@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 // A function called whenever an error is encountered
@@ -50,6 +51,8 @@ type Options struct {
 	// Important to avoid security issues described here: https://auth0.com/blog/2015/03/31/critical-vulnerabilities-in-json-web-token-libraries/
 	// Default: nil
 	SigningMethod jwt.SigningMethod
+
+	ClaimsFactory func() jwt.Claims
 }
 
 type JWTMiddleware struct {
@@ -200,7 +203,12 @@ func (m *JWTMiddleware) CheckJWT(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// Now parse the token
-	parsedToken, err := jwt.Parse(token, m.Options.ValidationKeyGetter)
+	var parsedToken *jwt.Token
+	if m.Options.ClaimsFactory != nil {
+		parsedToken, err = jwt.ParseWithClaims(token, m.Options.ClaimsFactory(), m.Options.ValidationKeyGetter)
+	} else {
+		parsedToken, err = jwt.Parse(token, m.Options.ValidationKeyGetter)
+	}
 
 	// Check if there was an error in parsing...
 	if err != nil {
